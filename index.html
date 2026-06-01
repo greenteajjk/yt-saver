@@ -58,10 +58,7 @@
       render(`<div class="result loading"><div class="icon"></div><div class="title">저장 중...</div></div>`);
 
       try {
-        const res = await fetch(scriptUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
+        const res = await fetch(scriptUrl + "?url=" + encodeURIComponent(url), {
           redirect: "follow",
         });
         const json = await res.json();
