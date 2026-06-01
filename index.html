@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YT Saver</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#FF0000">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #fff; max-width: 480px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 22px; color: #e00; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .sub { color: #888; font-size: 13px; margin-bottom: 24px; }
+    label { display: block; font-size: 13px; color: #555; margin-bottom: 6px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; }
+    button { margin-top: 12px; width: 100%; padding: 12px; background: #e00; color: #fff; border: none; border-radius: 8px; font-size: 15px; cursor: pointer; }
+    button:active { background: #b00; }
+    .result { text-align: center; padding: 40px 16px; }
+    .result .icon { font-size: 48px; }
+    .result .title { font-size: 17px; font-weight: bold; margin: 12px 0 6px; }
+    .result .msg { color: #888; font-size: 13px; }
+    .result .close { margin-top: 24px; background: #f5f5f5; color: #333; }
+    .ok .icon::before { content: "✅"; }
+    .err .icon::before { content: "❌"; }
+    .loading .icon::before { content: "⏳"; }
+  </style>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js");
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const sharedUrl = params.get("url") || params.get("text") || "";
+
+    if (sharedUrl.includes("youtube.com") || sharedUrl.includes("youtu.be")) {
+      handleShare(sharedUrl);
+    } else {
+      showSettings();
+    }
+
+    async function handleShare(url) {
+      const scriptUrl = localStorage.getItem("scriptUrl");
+      if (!scriptUrl) {
+        render(`
+          <div class="result err">
+            <div class="icon"></div>
+            <div class="title">설정이 필요합니다</div>
+            <div class="msg">앱 홈에서 Apps Script URL을 먼저 입력하세요.</div>
+            <button class="close" onclick="history.back()">닫기</button>
+          </div>`);
+        return;
+      }
+
+      render(`<div class="result loading"><div class="icon"></div><div class="title">저장 중...</div></div>`);
+
+      try {
+        const res = await fetch(scriptUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url }),
+          redirect: "follow",
+        });
+        const json = await res.json();
+        if (json.status === "ok") {
+          render(`
+            <div class="result ok">
+              <div class="icon"></div>
+              <div class="title">저장 완료</div>
+              <div class="msg">${escHtml(json.title || url)}</div>
+              <button class="close" onclick="window.close()">닫기</button>
+            </div>`);
+        } else {
+          render(`
+            <div class="result err">
+              <div class="icon"></div>
+              <div class="title">오류</div>
+              <div class="msg">${escHtml(json.message || "알 수 없는 오류")}</div>
+              <button class="close" onclick="window.close()">닫기</button>
+            </div>`);
+        }
+      } catch (e) {
+        render(`
+          <div class="result err">
+            <div class="icon"></div>
+            <div class="title">연결 오류</div>
+            <div class="msg">${escHtml(e.message)}</div>
+            <button class="close" onclick="window.close()">닫기</button>
+          </div>`);
+      }
+    }
+
+    function showSettings() {
+      const saved = escHtml(localStorage.getItem("scriptUrl") || "");
+      render(`
+        <h1>🎬 YT Saver</h1>
+        <p class="sub">유튜브 공유 → 이 앱 선택 → 스프레드시트에 자동 저장</p>
+        <label>Apps Script 웹앱 URL</label>
+        <input type="url" id="su" value="${saved}" placeholder="https://script.google.com/macros/s/..." />
+        <button onclick="saveSettings()">저장</button>
+      `);
+    }
+
+    function saveSettings() {
+      const url = document.getElementById("su").value.trim();
+      if (!url) return;
+      localStorage.setItem("scriptUrl", url);
+      document.querySelector("button").textContent = "✓ 저장됐습니다";
+      setTimeout(() => document.querySelector("button").textContent = "저장", 2000);
+    }
+
+    function render(html) {
+      document.getElementById("app").innerHTML = html;
+    }
+
+    function escHtml(s) {
+      return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+  </script>
+</body>
+</html>
