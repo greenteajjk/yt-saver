@@ -55,39 +55,17 @@
         return;
       }
 
-      render(`<div class="result loading"><div class="icon"></div><div class="title">저장 중...</div></div>`);
+      // 백그라운드 저장 시작 (keepalive = 창 닫혀도 요청 완료)
+      fetch(scriptUrl + "?url=" + encodeURIComponent(url), {
+        redirect: "follow",
+        keepalive: true,
+      }).catch(() => {});
 
-      try {
-        const res = await fetch(scriptUrl + "?url=" + encodeURIComponent(url), {
-          redirect: "follow",
-        });
-        const json = await res.json();
-        if (json.status === "ok") {
-          render(`
-            <div class="result ok">
-              <div class="icon"></div>
-              <div class="title">저장 완료</div>
-              <div class="msg">${escHtml(json.title || url)}</div>
-              <button class="close" onclick="window.close()">닫기</button>
-            </div>`);
-        } else {
-          render(`
-            <div class="result err">
-              <div class="icon"></div>
-              <div class="title">오류</div>
-              <div class="msg">${escHtml(json.message || "알 수 없는 오류")}</div>
-              <button class="close" onclick="window.close()">닫기</button>
-            </div>`);
-        }
-      } catch (e) {
-        render(`
-          <div class="result err">
-            <div class="icon"></div>
-            <div class="title">연결 오류</div>
-            <div class="msg">${escHtml(e.message)}</div>
-            <button class="close" onclick="window.close()">닫기</button>
-          </div>`);
-      }
+      // 바로 닫기
+      window.close();
+
+      // window.close()가 안 먹히는 경우 대비 (일부 Android)
+      setTimeout(() => history.back(), 50);
     }
 
     function showSettings() {
